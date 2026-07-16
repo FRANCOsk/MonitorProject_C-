@@ -1,70 +1,80 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using WebFEB.Enums;
 using WebFEB.Models;
 using WebFEB.Services;
 
-namespace WebFEB.Controllers
+namespace WebFEB.Controllers;
+
+[ApiController]
+[Route("api/people")]
+public class PersonController : ControllerBase
 {
-    [ApiController]
-    [Route("[controller]")]
-    public class PersonController: ControllerBase
+    private readonly IPersonService _personService;
+    private readonly IChangeService _changeService;
+
+    public PersonController(IPersonService personService, IChangeService changeService)
     {
-        private IPersonService _personService;
-        private IChangeService _changeService;
+        _personService = personService;
+        _changeService = changeService;
+    }
 
-        public PersonController(IPersonService personService, IChangeService changeService)
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyCollection<PersonDTO>>> GetPeople()
+    {
+        List<PersonDTO> people = await _personService.GetAllPersonsAsync();
+        return Ok(people);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<PersonDTO>> AddPerson(PersonDTO person)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+
+        if (person.Credit < 0)
         {
-            _personService = personService;
-            _changeService = changeService;
-        }
-
-        [HttpGet(Name = "GetPersons")]
-        public async Task<IEnumerable<PersonDTO>> Get()
-        {
-            return await _personService.GetAllPersonsAsync();
-        }
-
-        [HttpPost(Name = "AddPerson")]
-        public async Task AddPerson(PersonDTO person)
-        {
-            DateTime start = DateTime.Now;
-
-            if(person.Credit < 0)
+            await _changeService.TrackChange(new ChangeDTO
             {
-                await _changeService.TrackChange(new ChangeDTO() { ChangeType = ChangeTypes.Warning, Email = person.Email, Message = "Person dont have credit" });
-
-            }
-
-            if(string.IsNullOrEmpty(person.Email))
-            {
-                await _changeService.TrackChange(new ChangeDTO() { ChangeType = ChangeTypes.Error, Email = person.Email, Message = "Person email is required" });
-
-                return;
-            }
-
-            await _personService.AddPersonAsync(person);
-            DateTime end = DateTime.Now;
-            await _changeService.TrackChange(new ChangeDTO() { ChangeType = ChangeTypes.Added, Email = person.Email, Message = $"Person added in {(end - start).TotalMilliseconds} milliseconds" });
-
+                ChangeType = ChangeTypes.Warning,
+                Email = person.Email,
+                Message = "Person has a negative credit balance."
+            });
         }
 
-        [HttpPut(Name = "UpdatePerson")]
-        public async Task UpdatePerson(PersonDTO person)
+        await _personService.AddPersonAsync(person);
+        stopwatch.Stop();
+
+        await _changeService.TrackChange(new ChangeDTO
         {
-            DateTime start = DateTime.Now;
+            ChangeType = ChangeTypes.Added,
+            Email = person.Email,
+            Message = $"Person request completed in {stopwatch.Elapsed.TotalMilliseconds:F2} ms."
+        });
 
-            await _personService.UpdatePersonAsync(person.Email, person);
+        return StatusCode(StatusCodes.Status201Created, person);
+    }
 
-            DateTime end = DateTime.Now;
-            await _changeService.TrackChange(new ChangeDTO() { ChangeType = ChangeTypes.Updated, Email = person.Email, Message = $"Person updated in {(end - start).TotalMilliseconds} milliseconds" });
-        }
-        [HttpDelete(Name = "DeletePerson")]
-        public async Task DeletePerson(string email)
+    [HttpPut("{email}")]
+    public async Task<IActionResult> UpdatePerson(string email, PersonDTO person)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        await _personService.UpdatePersonAsync(email, person);
+        stopwatch.Stop();
+
+        await _changeService.TrackChange(new ChangeDTO
         {
+            ChangeType = ChangeTypes.Updated,
+            Email = email,
+            Message = $"Person update request completed in {stopwatch.Elapsed.TotalMilliseconds:F2} ms."
+        });
 
-            await _personService.DeletePersonAsync(email);
+        return NoContent();
+    }
 
-        }
-
+    [HttpDelete("{email}")]
+    public async Task<IActionResult> DeletePerson(string email)
+    {
+        await _personService.DeletePersonAsync(email);
+        return NoContent();
     }
 }
