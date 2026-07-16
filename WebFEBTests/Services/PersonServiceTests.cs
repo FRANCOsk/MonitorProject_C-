@@ -22,7 +22,7 @@ public class PersonServiceTests
         await service.AddPersonAsync(person);
         List<PersonDTO> people = await service.GetAllPersonsAsync();
 
-        Assert.HasCount(4, people);
+        Assert.AreEqual(4, people.Count);
         Assert.AreEqual("test@test.com", people[3].Email);
     }
 }
