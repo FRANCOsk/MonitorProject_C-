@@ -24,10 +24,32 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore WebFEB/WebFEB.sln
+        id: restore
+        shell: bash
+        run: |
+          set +e
+          dotnet restore WebFEB/WebFEB.sln > restore.log 2>&1
+          status=$?
+          cat restore.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload restore diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-restore-log
+          path: restore.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce restore result
+        if: steps.restore.outputs.status != '0'
+        run: exit 1
 
       - name: Build
+        if: steps.restore.outputs.status == '0'
         run: dotnet build WebFEB/WebFEB.sln --configuration Release --no-restore
 
       - name: Test
+        if: steps.restore.outputs.status == '0'
         run: dotnet test WebFEB/WebFEB.sln --configuration Release --no-build --verbosity normal
