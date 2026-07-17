@@ -26,19 +26,15 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-          cache: true
-          cache-dependency-path: |
-            WebFEB/packages.lock.json
-            WebFEBTests/packages.lock.json
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore WebFEBTests/WebFEBTests.csproj
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build WebFEBTests/WebFEBTests.csproj --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test WebFEBTests/WebFEBTests.csproj --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
 
       - name: Audit application dependencies
         run: dotnet list WebFEB/WebFEB.csproj package --vulnerable --include-transitive
