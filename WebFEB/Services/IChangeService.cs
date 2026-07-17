@@ -1,12 +1,12 @@
-﻿using WebFEB.Models;
+using WebFEB.Models;
 
-namespace WebFEB.Services
+namespace WebFEB.Services;
+
+public interface IChangeService
 {
-    public interface IChangeService
+    Task TrackChange(ChangeDTO action);
 
-    {
-        Task TrackChange(ChangeDTO action);
-        Task<List<ChangeDTO>> GetAllChangesAsync();
-        Task<ChangeDTO> GetChangeByIdAsync(int id);
-    }
+    Task<List<ChangeDTO>> GetAllChangesAsync();
+
+    Task<ChangeDTO?> GetChangeByIdAsync(int id);
 }

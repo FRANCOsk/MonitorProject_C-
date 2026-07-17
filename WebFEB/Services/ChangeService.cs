@@ -1,49 +1,67 @@
-﻿using System.Diagnostics;
 using WebFEB.Enums;
 using WebFEB.Models;
 using WebFEB.Storage;
 
-namespace WebFEB.Services
+namespace WebFEB.Services;
+
+public class ChangeService : IChangeService
 {
-    public class ChangeService: IChangeService
+    private readonly ILogger<ChangeService> _logger;
+
+    public ChangeService(ILogger<ChangeService> logger)
     {
-        private EventLog _eventLog;
+        _logger = logger;
+    }
 
-        public ChangeService()
+    public Task TrackChange(ChangeDTO action)
+    {
+        action.Id = MonitorStorage.Changes.Count + 1;
+        action.Timestamp = DateTime.UtcNow;
+        MonitorStorage.Changes.Add(action);
+
+        string logMessage =
+            "Change tracked: {ChangeType} by {Email} at {Timestamp}. Message: {Message}";
+
+        switch (action.ChangeType)
         {
-            _eventLog = new EventLog("WebFEB");
+            case ChangeTypes.Warning:
+                _logger.LogWarning(
+                    logMessage,
+                    action.ChangeType,
+                    action.Email,
+                    action.Timestamp,
+                    action.Message);
+                break;
+
+            case ChangeTypes.Error:
+                _logger.LogError(
+                    logMessage,
+                    action.ChangeType,
+                    action.Email,
+                    action.Timestamp,
+                    action.Message);
+                break;
+
+            default:
+                _logger.LogInformation(
+                    logMessage,
+                    action.ChangeType,
+                    action.Email,
+                    action.Timestamp,
+                    action.Message);
+                break;
         }
 
-        public async Task TrackChange(ChangeDTO action)
-        {
+        return Task.CompletedTask;
+    }
 
-            action.Id = MonitorStorage.Changes.Count + 1;
-            action.Timestamp = DateTime.Now;
-            MonitorStorage.Changes.Add(action);
-            EventLogEntryType eventLogType = EventLogEntryType.Information;
-            switch(action.ChangeType)
-            {
-                case ChangeTypes.Warning:
-                    eventLogType = EventLogEntryType.Warning;
-                    break;
-                case ChangeTypes.Error:
-                    eventLogType = EventLogEntryType.Error;
-                    break;
-                default:
-                    eventLogType = EventLogEntryType.Information;
-                    break;
-            }
-            _eventLog.WriteEntry($"Change tracked: {action.ChangeType} by {action.Email} at {action.Timestamp}. Message: {action.Message}", eventLogType);
-        }
+    public Task<List<ChangeDTO>> GetAllChangesAsync()
+    {
+        return Task.FromResult(MonitorStorage.Changes.ToList());
+    }
 
-        public async Task<List<ChangeDTO>> GetAllChangesAsync()
-        {
-            return MonitorStorage.Changes;
-        }
-
-        public Task<ChangeDTO> GetChangeByIdAsync(int id)
-        {
-            return Task.FromResult(MonitorStorage.Changes.SingleOrDefault(x => x.Id == id));
-        }
+    public Task<ChangeDTO?> GetChangeByIdAsync(int id)
+    {
+        return Task.FromResult(MonitorStorage.Changes.SingleOrDefault(change => change.Id == id));
     }
 }

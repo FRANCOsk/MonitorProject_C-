@@ -1,35 +1,28 @@
-﻿using WebFEB.Models;
+using Microsoft.Extensions.Logging.Abstractions;
+using WebFEB.Models;
 
-namespace WebFEB.Services.Tests
+namespace WebFEB.Services.Tests;
+
+[TestClass]
+public class PersonServiceTests
 {
-    [TestClass()]
-    public class PersonServiceTests
+    [TestMethod]
+    public async Task AddPersonAsyncAddsPersonToStorage()
     {
+        ChangeService changeService = new(NullLogger<ChangeService>.Instance);
+        PersonService service = new(changeService);
 
-        [TestMethod()]
-        public void AddPersonAsyncTest()
+        PersonDTO person = new()
         {
+            Email = "test@test.com",
+            Name = "Test User",
+            Credit = 50
+        };
 
-            ChangeService changeService = new ChangeService();
-            PersonService service = new PersonService(changeService);
+        await service.AddPersonAsync(person);
+        List<PersonDTO> people = await service.GetAllPersonsAsync();
 
-            var person = new PersonDTO
-            {
-                Email = "test@test.com",
-                Name = "Test User",
-                Credit = 50
-            };
-
-            // Act
-            service.AddPersonAsync(person);
-
-            var persons = service.GetAllPersonsAsync().Result;
-            // Assert
-            Assert.AreEqual(4, persons.Count);
-            Assert.AreEqual("test@test.com", persons[3].Email);
-
-        }
-
-
+        Assert.AreEqual(4, people.Count);
+        Assert.AreEqual("test@test.com", people[3].Email);
     }
 }
